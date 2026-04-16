@@ -14,6 +14,20 @@ Architectural and product decisions, newest first.
 
 The legacy `services/ble/` doc in the old monorepo has a note about SwiftUI sheet/List pitfalls; worth referencing when this is re-attempted.
 
+## 2026-04-16 — FIT path: convert in body-metrics, consume CSV in Track Workout
+**Decision:** When a vendor (e.g. COROS, Garmin) only provides a binary FIT export, the **body-metrics** project owns the FIT→CSV conversion. Track Workout iOS continues to accept only the normalized CSV described in `DATA_MODEL.md § CSV Import Schema`. No FIT parser ships in any Track Workout client.
+
+**Why:** body-metrics already has `fitparse` in its Python `.venv`, an existing `data_loader.py` that reads FIT, and an architectural role as the integration hub for vendor-specific data (per its `CLAUDE.md`). Adding a Swift FIT library to the iOS bundle would duplicate that responsibility, increase binary size, and couple the iOS app to a vendor format.
+
+**How to apply:**
+- Convert: `cd ~/Athenia/projects/body-metrics && source .venv/bin/activate && python fit_to_csv.py path/to/workout.fit` → writes `workout.csv`.
+- Move CSV to iPhone (AirDrop, iCloud Drive, Files.app).
+- In iOS app: Settings → "Import HR CSV from file…" → select the CSV.
+- Worked example: `body-metrics/data/coros-cardo-dec-16.csv` (3,483 samples from a 58-minute COROS workout).
+- Full workflow doc: `body-metrics/FIT_TO_CSV.md`.
+
+**Consequence:** When future platforms (ios-web, android-react, macos-swift) need HR ingest, they too consume CSV — body-metrics handles any new vendor formats centrally.
+
 ## 2026-04-16 — HR ingest: CSV first, FIT deferred, BLE later
 **Decision:** For v2.1, HR data arrives as CSV (Polar Flow / Garmin Connect / COROS export). The `HeartRateSample` entity gains `elevationMeters`, `speedKmh`, `distanceKm` as optional fields so a single CSV import can carry HR + co-metrics typical of sports-watch exports. FIT (binary) import and direct BLE streaming are both deferred behind the CSV path.
 

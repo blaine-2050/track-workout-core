@@ -57,7 +57,7 @@ Time-series sample centered on heart rate, with optional co-located metrics comm
 
 Three ingest paths, all targeting this entity:
 - **CSV import** (primary) — Polar Flow / Garmin Connect / COROS / compatible export. User selects a CSV; the importer parses, normalizes, and persists samples. See `CSV Import Schema` below for the required column shape.
-- **FIT import** (planned) — Garmin/COROS binary FIT format. Requires a parser library; deferred behind CSV.
+- **FIT conversion via body-metrics** — when the vendor only provides a binary FIT, run `body-metrics/fit_to_csv.py` to convert it into the CSV schema below, then import. Track Workout clients themselves do not parse FIT.
 - **Direct BLE** (planned) — Polar H10 or compatible over GATT Heart Rate Service `0x180D`. Samples stream in live during a workout. Co-metrics (elevation/speed/distance) remain NULL on this path.
 
 | Field | Type | Notes |
