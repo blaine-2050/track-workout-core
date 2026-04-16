@@ -44,7 +44,7 @@ Verify a **realistic full-day workout** that mixes modalities: bike commute → 
 
 ## Pass criteria
 
-- Workout summary shows: ~9 entries across 5 distinct move names. Total cardio duration > 0. Total weight moved = `135*10 + 145*8 + 145*8 + 100*12 + 110*10 = 5,030 lbs`.
+- Workout summary shows: **10 entries** across 5 distinct move names. Total cardio duration > 0. Total weight moved = `135*10 + 145*8 + 145*8 + 100*12 + 110*10 = 5,970 lbs`.
 - All entries are present in history under one Workout, with their notes attached and visible.
 - Free-form move "Bike commute" was logged once as new, then reusable on the second commute (catalog autocomplete).
 - Free-form move "Yoga in the back yard" was logged with a note and no duration/weight.
