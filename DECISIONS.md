@@ -2,6 +2,18 @@
 
 Architectural and product decisions, newest first.
 
+## 2026-04-16 — Defer searchable-sheet move picker
+**Decision:** Keep the existing SwiftUI `Menu` for move selection for now. Do not replace it with a sheet-style searchable picker until a concrete need for search (catalog > ~25 moves, user complaint about scrolling) arises.
+
+**Why:** Attempted rewrite to `.sheet(isPresented:) { MovePickerSheet }` produced a reproducible SwiftUI quirk on iOS 26.2: tapping a row inside `List` → sheet toggles `isPresented = false` via @Binding AND via `DispatchQueue.main.async` still failed to dismiss the presenting sheet, even though the selected-move binding updated correctly (checkmark rendered). The issue appears specific to `List` rows inside a plain `View` sheet; moving to `NavigationStack + .searchable` made dismissal work when tapping the toolbar Cancel button but still broke row-tap dismissal. Fighting this isn't worth it against the current value: the default 13-move catalog fits mostly on-screen, real users can scroll a Menu with their finger, and the remaining gap ("Treadmill falls below fold") was a Maestro-test-design constraint rather than a user-facing bug.
+
+**How to apply:** When a future user really does have ~30+ moves and asks for search, revisit with one of:
+- `NavigationStack + Picker(selection:) { ForEach(...) } .pickerStyle(.navigationLink)` — standard SwiftUI idiom for large selections.
+- A separate screen (push, not sheet) via NavigationLink.
+- `sheet(item:)` with an Identifiable wrapper — the selection itself drives presentation, avoiding the `isPresented` dismissal dance.
+
+The legacy `services/ble/` doc in the old monorepo has a note about SwiftUI sheet/List pitfalls; worth referencing when this is re-attempted.
+
 ## 2026-04-16 — HR ingest: CSV first, FIT deferred, BLE later
 **Decision:** For v2.1, HR data arrives as CSV (Polar Flow / Garmin Connect / COROS export). The `HeartRateSample` entity gains `elevationMeters`, `speedKmh`, `distanceKm` as optional fields so a single CSV import can carry HR + co-metrics typical of sports-watch exports. FIT (binary) import and direct BLE streaming are both deferred behind the CSV path.
 
