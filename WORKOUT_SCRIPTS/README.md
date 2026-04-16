@@ -29,16 +29,18 @@ Each script file contains:
 | [`04-cardio-segment.md`](04-cardio-segment.md) | Log a cardio segment via tap-start/tap-stop **and** via direct duration entry; attach a note |
 | [`05-offline-queue-and-sync.md`](05-offline-queue-and-sync.md) | Log offline, then verify outbox drains on reconnect (requires sync enabled) |
 | [`06-multi-modal-session.md`](06-multi-modal-session.md) | A realistic full-day workout: bike commute → cardio → free weights → cardio → commute → yoga, with notes and free-form moves |
+| [`07-hr-csv-import.md`](07-hr-csv-import.md) | Import a second-by-second HR CSV and align to a logged workout |
 
 Add new scripts as features stabilize. Scripts should stay small and focused; build complexity through composition, not large scripts.
 
-## Script status (2026-04-15)
+## Script status (2026-04-16)
 
 | # | Status | Notes |
 |---|--------|-------|
-| 01 | Verified on iOS | Maestro flow passing |
-| 02 | Verified on iOS | Maestro flow passing |
-| 03 | Verified on iOS | Maestro flow passing |
-| 04 | **Spec updated for v2** | iOS implementation pending (cardio first-class) |
-| 05 | Pending | Requires sync enabled and reachable server |
-| 06 | New for v2 | Implementation pending |
+| 01 | Verified on iOS | Maestro `script01-single-set-bench-press.yaml` |
+| 02 | Verified on iOS | Maestro `script02-multi-set-sticky-inputs.yaml` |
+| 03 | Verified on iOS | Maestro `script03-workout-stop-summary.yaml` |
+| 04 | Verified on iOS (Path A) | Maestro `cardio-segment.yaml` covers tap-start/tap-stop; Path B (manual HH:MM:SS) not separately flowed |
+| 05 | Pending | Requires sync enabled and reachable server (Railway) |
+| 06 | Verified on iOS | Maestro `script06-multi-modal.yaml` — 10 entries, 5,970 lbs, notes preserved. Two spec deviations logged in the flow (yoga→duration, MTB-vs-Treadmill). |
+| 07 | Pending | v2.1 — importer implementation in progress |

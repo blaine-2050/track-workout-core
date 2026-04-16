@@ -1,6 +1,6 @@
 # Data Model
 
-> **Spec version:** 2 (2026-04-15) — adds `notes`, makes `moveId` optional, adds `moveName` always, expands `measurementType`, promotes `HeartRateSample` to first-class. See `DECISIONS.md`.
+> **Spec version:** 2.1 (2026-04-16) — adds `elevationMeters`, `speedKmh`, `distanceKm` to `HeartRateSample`; documents the CSV Import Schema. v2 (2026-04-15) added `notes`, made `moveId` optional, added `moveName`, expanded `measurementType`, promoted `HeartRateSample` to first-class. See `DECISIONS.md`.
 
 Conceptual schema every platform must honor. Platform-specific ORMs (Core Data, Drizzle, SQLite) may name types differently but must expose these fields.
 
@@ -53,11 +53,12 @@ One logged event: a strength set, a cardio segment, or a free-form note. Indepen
 | `updatedAt` | ISO8601 UTC | always | |
 
 ### HeartRateSample
-Time-series HR data. **First-class** as of v2 (was previously optional).
+Time-series sample centered on heart rate, with optional co-located metrics commonly captured by the same device (elevation, speed, distance). **First-class** as of v2; widened in v2.1 to carry the co-metrics that vendor exports ship alongside HR.
 
-Two ingest paths, both targeting this entity:
-- **CSV import** (Polar Flow / Garmin Connect or compatible export). User selects a CSV; the importer parses, normalizes, and persists samples.
-- **Direct BLE** (Polar H10 or compatible over GATT Heart Rate Service `0x180D`). Samples stream in live during a workout.
+Three ingest paths, all targeting this entity:
+- **CSV import** (primary) — Polar Flow / Garmin Connect / COROS / compatible export. User selects a CSV; the importer parses, normalizes, and persists samples. See `CSV Import Schema` below for the required column shape.
+- **FIT import** (planned) — Garmin/COROS binary FIT format. Requires a parser library; deferred behind CSV.
+- **Direct BLE** (planned) — Polar H10 or compatible over GATT Heart Rate Service `0x180D`. Samples stream in live during a workout. Co-metrics (elevation/speed/distance) remain NULL on this path.
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -65,10 +66,30 @@ Two ingest paths, both targeting this entity:
 | `userId` | UUID | |
 | `workoutId` | UUID? | Set when alignment to a workout is confident; NULL until aligned. |
 | `timestamp` | ISO8601 UTC | Sample time. |
-| `bpm` | int | |
+| `bpm` | int | Heart rate in beats per minute. Core field — required. |
 | `rrIntervalMs` | int? | Beat-to-beat interval if available (Polar H10 reports this). |
-| `source` | string | e.g. `polar-h10-ble`, `polar-flow-csv`, `garmin-connect-csv`, `fixture`. |
-| `importBatchId` | UUID? | Groups samples imported from the same CSV file. |
+| `elevationMeters` | number? | Altitude in meters. |
+| `speedKmh` | number? | Ground speed in km/h. |
+| `distanceKm` | number? | Cumulative distance from session start in km. |
+| `source` | string | e.g. `polar-h10-ble`, `polar-flow-csv`, `garmin-connect-csv`, `coros-csv`, `fixture`. |
+| `importBatchId` | UUID? | Groups samples imported from the same CSV/FIT file. |
+
+#### CSV Import Schema
+
+The importer accepts any CSV whose header row contains these columns. Names are case-insensitive; extra columns are ignored; metric units are canonical.
+
+| Column | Required | Type | Example | Notes |
+|--------|----------|------|---------|-------|
+| `timestamp` | **yes** | ISO8601 UTC | `2026-04-16T10:57:33Z` | If the CSV carries local-time without offset, the importer assumes device-local timezone and records the normalized UTC. |
+| `heart_rate_bpm` | **yes** | int | `142` | |
+| `elevation_m` | no | float | `134.5` | Meters. |
+| `speed_kmh` | no | float | `8.3` | Km/h. Convert from m/s by `*3.6`. |
+| `distance_km` | no | float | `2.15` | Km. Cumulative from session start. |
+
+- **Sampling interval:** second-by-second preferred but not required. The importer accepts any cadence; no interpolation.
+- **Missing values:** blank cells → NULL. Sentinel values (`0` for bpm on vendor exports) are treated as NULL.
+- **Alignment:** after import, each sample is tagged with the Workout whose `[startedAt, endedAt]` (or `[startedAt, now]` if open) window contains `timestamp`. Unaligned samples keep `workoutId = NULL` and stay importable later when a matching workout exists.
+- **Batch handling:** every import assigns a fresh `importBatchId` so the user can undo a single import without losing unrelated samples.
 
 ### MoveAlias (planned)
 Optional. Maps user-typed strings to canonical Moves so "yoga", "Yoga", "yoga in the park" can roll up for analytics later. Not required in v2.
@@ -113,6 +134,11 @@ This document is the contract. Breaking changes require:
 1. A version bump in the header.
 2. A migration entry in `DECISIONS.md` (with explicit migration guidance for each platform).
 3. Notification to each platform repo's issue tracker.
+
+### v2 → v2.1 migration notes (2026-04-16)
+- **`HeartRateSample.elevationMeters`, `speedKmh`, `distanceKm`** are new nullable numeric fields. Additive; no backfill needed.
+- CSV Import Schema documented. No entity changes beyond the three new optional fields.
+- No other platforms have HR support yet, so migration is iOS-only.
 
 ### v1 → v2 migration notes (2026-04-15)
 - **`LogEntry.moveId` becomes optional.** Existing rows keep their value; new free-form entries set it to NULL.

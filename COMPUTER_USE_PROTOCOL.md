@@ -91,6 +91,27 @@ Each platform repo documents the exact commands.
 └─────────────────────────────────────────────────────┘
 ```
 
+## UI-driving lessons learned
+
+Accumulated gotchas from running Maestro flows against the iOS Swift implementation. Platforms with their own harness should add their own section.
+
+### iOS Swift + Maestro
+
+- **Accessibility identifiers are required for repeat-same-text taps.** Maestro coalesces two rapid taps on the same `text:` target as a double-tap, dropping one. The numeric keypad buttons, settings toggle, add-move form fields, and sheet buttons all need `accessibilityIdentifier(…)`. Name pattern: `<component>-<action>` (e.g. `keypad-2`, `add-move-save`, `cardio-start`).
+- **Ambiguous text.** When a visible string (e.g. `"5"`) can match two elements — a keypad button AND a reps display — Maestro picks one and the flow fails non-obviously. Prefer `id:` taps for anything that could be ambiguous.
+- **Maestro asserts with full-string regex, not substring.** `assertVisible: "Workout ended at"` does **not** match the text `"Workout ended at 10:11:09"`. Use `.*` to anchor: `"Workout ended at.*"` or `".*hamstrings tight"`.
+- **SwiftUI Toggle hit-target.** Tapping a Toggle via `id:` does not flip it in Maestro; tap the trailing UISwitch by point (e.g. `92%, 21%` for the first row in a Form sheet on iPhone 12).
+- **`waitForAnimationToEnd` is necessary after modal/sheet dismiss** — the accessibility hierarchy is unstable during SwiftUI sheet animations and assertions fire too early.
+- **SwiftUI `Menu` does not scroll.** Items at the bottom of an alphabetized menu (e.g. `Treadmill` in a 13-move catalog) fall below the iPhone 12 viewport and can't be tapped. Test against a move that's higher in the list, or use a searchable sheet-style picker once catalog size matters.
+- **LazyVStack viewport limit.** History entries scrolled off-screen are **not** in the accessibility hierarchy. An `assertVisible` on a note attached to an early entry will fail after later entries push it offscreen. Either assert at log-time (before scroll) or introduce an explicit scroll step.
+- **`extendedWaitUntil` with a sentinel + timeout** is the pragmatic way to "sleep N seconds" — Maestro has no native sleep primitive. Pattern:
+  ```yaml
+  - extendedWaitUntil:
+      visible: "__sentinel_does_not_exist__"
+      timeout: 2000
+      optional: true
+  ```
+
 ## Non-goals
 
 - Full end-to-end physical-device automation. Real-gym testing stays human-driven.
