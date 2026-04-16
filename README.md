@@ -4,6 +4,8 @@ Authoritative, cross-platform specification for **Track Workout** — a multi-pl
 
 This repo holds **only prose specs**. No executable code. Every platform implementation lives in its own repo and references documents here by URL.
 
+> **Current spec version: 2** (2026-04-15). Major revision: cardio is first-class, free-form move names and notes are first-class, sync is opt-in, HR data is a planned dimension. See [`DECISIONS.md`](DECISIONS.md) for the full rationale and v1→v2 migration notes.
+
 ## What's here
 
 | File | Purpose |

@@ -1,89 +1,123 @@
 # Data Model
 
+> **Spec version:** 2 (2026-04-15) — adds `notes`, makes `moveId` optional, adds `moveName` always, expands `measurementType`, promotes `HeartRateSample` to first-class. See `DECISIONS.md`.
+
 Conceptual schema every platform must honor. Platform-specific ORMs (Core Data, Drizzle, SQLite) may name types differently but must expose these fields.
 
 ## Entities
 
 ### Move
-Exercise catalog entry.
+Catalog **suggestion**, not a constraint. Users can log against any name; the catalog provides autocomplete and grouping.
 
 | Field | Type | Notes |
 |-------|------|-------|
 | `id` | UUID | Stable across platforms |
 | `name` | string | Human-readable (e.g. "Bench Press") |
 | `sortOrder` | int | For alphabetical or user-defined ordering |
-| `measurementType` | enum | `strength` or `interval` |
+| `measurementType` | enum | `strength`, `duration`, or `note_only` |
+| `isCustom` | bool | `true` if added by the user (not a seed) |
 
 ### Workout
-Session container.
+Container for one or more entries spanning any mix of modalities.
 
 | Field | Type | Notes |
 |-------|------|-------|
 | `id` | UUID | |
 | `userId` | UUID | |
-| `startedAt` | ISO8601 UTC | Set when the first move is selected |
+| `startedAt` | ISO8601 UTC | Set when the first entry is logged |
 | `endedAt` | ISO8601 UTC? | Set on manual Stop |
 | `updatedAt` | ISO8601 UTC | Any local edit bumps this |
 
 ### LogEntry
-One rep-set or interval.
+One logged event: a strength set, a cardio segment, or a free-form note. Independently persisted; grouped by `workoutId`.
+
+| Field | Type | Required when | Notes |
+|-------|------|---------------|-------|
+| `id` | UUID | always | |
+| `userId` | UUID | always | |
+| `workoutId` | UUID | always | The owning Workout |
+| `moveId` | UUID? | optional | Set when entry references a Move from the catalog. NULL for ad-hoc/free-form moves. |
+| `moveName` | string | always | Always populated. Mirrors `Move.name` if `moveId` is set; otherwise the user's typed string (e.g. "Yoga in the back yard"). |
+| `measurementType` | enum | always | `strength` \| `duration` \| `note_only` |
+| `weight` | number? | `measurementType == strength` | |
+| `weightUnit` | enum? | `measurementType == strength` | `kg` or `lbs`. Per-entry. |
+| `reps` | int? | `measurementType == strength` | |
+| `durationSeconds` | int? | `measurementType == duration` | Computed from start/end if user used tap-start/tap-stop, or entered directly. |
+| `startedAt` | ISO8601 UTC | always | When the entry began (keypress / tap-start / move-select). |
+| `endedAt` | ISO8601 UTC? | duration entries; optional for strength | When the entry was completed. |
+| `notes` | string? | optional | Free-form text up to ~1000 chars. Optional on every entry. |
+| `intervalKind` | enum? | optional | For interval-marked cardio: `work` \| `rest`. |
+| `intervalLabel` | string? | optional | Human-readable label for the interval. |
+| `intensity` | number? | optional | Subjective effort 1–10 or RPE-style. Reserved. |
+| `intensityMetric` | string? | optional | What `intensity` represents (`rpe`, `estimated_effort`, etc.). |
+| `updatedAt` | ISO8601 UTC | always | |
+
+### HeartRateSample
+Time-series HR data. **First-class** as of v2 (was previously optional).
+
+Two ingest paths, both targeting this entity:
+- **CSV import** (Polar Flow / Garmin Connect or compatible export). User selects a CSV; the importer parses, normalizes, and persists samples.
+- **Direct BLE** (Polar H10 or compatible over GATT Heart Rate Service `0x180D`). Samples stream in live during a workout.
 
 | Field | Type | Notes |
 |-------|------|-------|
 | `id` | UUID | |
 | `userId` | UUID | |
-| `workoutId` | UUID | Foreign key to Workout |
-| `moveId` | UUID | Foreign key to Move |
-| `measurementType` | enum | `strength` or `interval` (denormalized from Move for query convenience) |
-| `weight` | number? | Required if `measurementType == strength` |
-| `weightUnit` | enum? | `kg` or `lbs`. Per-entry, not global. |
-| `reps` | int? | Required if `measurementType == strength` |
-| `durationSeconds` | int? | Required if `measurementType == interval` |
-| `startedAt` | ISO8601 UTC | When the entry began (keypress/move-select) |
-| `endedAt` | ISO8601 UTC | When the entry was logged |
-| `updatedAt` | ISO8601 UTC | |
+| `workoutId` | UUID? | Set when alignment to a workout is confident; NULL until aligned. |
+| `timestamp` | ISO8601 UTC | Sample time. |
+| `bpm` | int | |
+| `rrIntervalMs` | int? | Beat-to-beat interval if available (Polar H10 reports this). |
+| `source` | string | e.g. `polar-h10-ble`, `polar-flow-csv`, `garmin-connect-csv`, `fixture`. |
+| `importBatchId` | UUID? | Groups samples imported from the same CSV file. |
 
-### HeartRateSample (optional)
-Pluggable. Each platform may skip until BLE milestone.
-
-| Field | Type |
-|-------|------|
-| `id` | UUID |
-| `workoutId` | UUID |
-| `timestamp` | ISO8601 UTC |
-| `bpm` | int |
-| `source` | string (e.g. `polar-h10`, `fixture`) |
+### MoveAlias (planned)
+Optional. Maps user-typed strings to canonical Moves so "yoga", "Yoga", "yoga in the park" can roll up for analytics later. Not required in v2.
 
 ## Sync Contract
 
 - **Transport:** HTTPS JSON POST to a platform-configurable endpoint.
-- **Direction:** client → server push of outbox; server → client pull for updates since last sync cursor.
+- **Direction:** client → server push of outbox. (Server → client pull is reserved for a later spec version.)
+- **Opt-in:** sync is disabled by default. The app must function fully offline.
 - **Conflict resolution:** **latest `updatedAt` wins**, compared in UTC.
 - **Idempotency:** client may POST the same entry repeatedly; server dedupes by `id`.
-- **Offline:** all writes go to a local outbox first. Sync drains the outbox.
-- **Auth:** JWT bearer token (details deferred to API server repo).
+- **Offline:** all writes go to a local outbox first. Enabling sync drains the outbox.
+- **Free-form moves:** entries with `moveId == NULL` sync as-is, with `moveName` carrying the user's string. The server does not auto-create a Move row for free-form names.
+- **HR samples:** sync deferred. HR data stays local until a future spec version covers HR sync (volume considerations).
+- **Auth:** static API key for single-user mode (current); JWT for multi-user (future).
 
 ## Seed Data
 
-All platforms ship with the same seed moves on first launch:
+All platforms ship with the same seed moves on first launch. These are **suggestions**, not the only allowed names:
 
-1. Bench Press
-2. Single Arm Snatch
-3. Incline DB Press
-4. Military DB Press
-5. Squat
-6. Split Squat
-7. Deadlift
-8. Lat Pull Down
-9. Bent Over Row
-10. Leg Press
-11. MTB (interval)
-12. Elliptical (interval)
-13. Treadmill (interval)
+| # | Name | measurementType |
+|---|------|-----------------|
+| 1 | Bench Press | strength |
+| 2 | Single Arm Snatch | strength |
+| 3 | Incline DB Press | strength |
+| 4 | Military DB Press | strength |
+| 5 | Squat | strength |
+| 6 | Split Squat | strength |
+| 7 | Deadlift | strength |
+| 8 | Lat Pull Down | strength |
+| 9 | Bent Over Row | strength |
+| 10 | Leg Press | strength |
+| 11 | MTB | duration |
+| 12 | Elliptical | duration |
+| 13 | Treadmill | duration |
+
+(Suggested cardio additions for v2.1: `Bike commute`, `Walk`, `Yoga`, `Stretching` — but these may equally be added by users on demand.)
 
 ## Versioning
 
 This document is the contract. Breaking changes require:
-1. A version bump noted at the top of the affected section.
-2. A migration entry in `DECISIONS.md`.
+1. A version bump in the header.
+2. A migration entry in `DECISIONS.md` (with explicit migration guidance for each platform).
 3. Notification to each platform repo's issue tracker.
+
+### v1 → v2 migration notes (2026-04-15)
+- **`LogEntry.moveId` becomes optional.** Existing rows keep their value; new free-form entries set it to NULL.
+- **`LogEntry.moveName` is new and required.** Backfill existing rows by reading the linked `Move.name`.
+- **`LogEntry.notes` is new and nullable.** No backfill needed.
+- **`LogEntry.measurementType` enum gains `note_only`** and renames `interval` → `duration`. Existing `interval` values are mapped to `duration` on read; writes use `duration`.
+- **`Move.isCustom` is new.** Backfill seeded moves to `false`.
+- **`HeartRateSample.rrIntervalMs`, `source` widening, `importBatchId`** are additive. Existing samples (none in production yet) need no migration.
