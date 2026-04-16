@@ -20,6 +20,7 @@ This repo holds **only prose specs**. No executable code. Every platform impleme
 | Platform | Repo | Status |
 |----------|------|--------|
 | iOS (Swift) | `blaine-2050/track-workout-ios-swift` | Active — primary development target |
+| Sync server | `blaine-2050/track-workout-api` | Initial scaffold; not yet deployed |
 | iOS Web | — | Planned |
 | Android (React Native) | — | Planned |
 | Android (other) | — | Planned |
