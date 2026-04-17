@@ -1,10 +1,44 @@
-# track-workout-core
+# Track Workout
 
-Authoritative, cross-platform specification for **Track Workout** — a multi-platform app for logging exercise events during training.
+A multi-platform workout tracker that fits your actual training — strength sets, bike commutes, cardio segments, yoga, and everything in between. One workout, any mix of modalities, with optional heart-rate overlay and cloud sync.
 
-This repo holds **only prose specs**. No executable code. Every platform implementation lives in its own repo and references documents here by URL.
+**This repo is the spec.** No executable code. Every platform implementation lives in its own repo and references documents here by URL.
 
-> **Current spec version: 2.1** (2026-04-16). Additive: `HeartRateSample` gains `elevationMeters`, `speedKmh`, `distanceKm`; CSV Import Schema documented; COMPUTER_USE_PROTOCOL gains iOS/Maestro lessons. v2 (2026-04-15): cardio first-class, free-form moves, notes, opt-in sync, HR promoted to first-class. See [`DECISIONS.md`](DECISIONS.md) for full rationale and migration notes.
+> **Spec version 2.1** — cardio is first-class, free-form move names and notes on every entry, sync is opt-in, HR data from CSV/FIT imports. See [`DECISIONS.md`](DECISIONS.md) for the full history.
+
+## Getting Started
+
+### Pick your platform and clone one repo
+
+| I want to... | Clone this | Then run |
+|--------------|-----------|----------|
+| **Build for iPhone** (native Swift) | `track-workout-swift` | Open `TrackWorkout.xcodeproj` in Xcode → Run on Simulator or device |
+| **Build for iPhone + Android** (one codebase) | `track-workout-expo` | `npm install && npx expo start` → scan QR with Expo Go |
+| **Run the sync server** | `track-workout-api` | `npm install && npm run dev` → runs on `localhost:3000` |
+| **Read the spec** | This repo | Just read the Markdown files below |
+
+Each repo's `README.md` has full setup instructions. You don't need all four — pick the platform you care about and go. Sync is off by default; the apps work fully offline.
+
+### What a workout looks like
+
+A real session might be: bike commute → 15 min treadmill → 3 sets bench press → 2 sets lat pull-down → 10 min elliptical → bike home → yoga in the back yard. The app accommodates that without making you fight the categories. You can:
+
+- **Log strength** with a numeric keypad (weight + reps in under 5 seconds)
+- **Log cardio** with one tap to start, one tap to stop
+- **Log anything** by typing a free-form name ("Yoga in the park")
+- **Attach a note** to any entry ("right shoulder twinge — back off next time")
+- **Import heart-rate data** from a Polar/Garmin/COROS CSV export
+- **Optionally sync** to a central server when you're ready
+
+### Heart-rate data
+
+If you have a Polar, Garmin, or COROS watch:
+1. Export the workout as a FIT file from the watch app.
+2. Convert to CSV: `python body-metrics/fit_to_csv.py workout.fit` (see [body-metrics](https://github.com/blaine-2050/body-metrics)).
+3. In the app: Settings → Import HR CSV from file → pick the CSV.
+4. The workout in History gets an HR summary badge (avg/max bpm).
+
+Direct BLE streaming from a Polar H10 chest strap is in progress.
 
 ## What's here
 
@@ -21,10 +55,9 @@ This repo holds **only prose specs**. No executable code. Every platform impleme
 
 | Repo | Tool | Platforms | Status |
 |------|------|-----------|--------|
-| `blaine-2050/track-workout-swift` | SwiftUI + Core Data | iOS, macOS | Active — spec v2.1, 10 Maestro flows green |
-| `blaine-2050/track-workout-expo` | Expo + React Native | iOS, Android | Extracted — spec v1 parity, v2 gaps documented |
-| `blaine-2050/track-workout-api` | Express + Drizzle | Railway (server) | Scaffolded, 9/9 tests passing, not deployed |
-| — | Web (framework TBD) | Browser | Planned |
+| `track-workout-swift` | SwiftUI + Core Data | iOS, macOS | Spec v2.1 complete. 10 Maestro test flows green. |
+| `track-workout-expo` | Expo + React Native | iOS, Android | Spec v2.1 complete. All features implemented. |
+| `track-workout-api` | Express + Drizzle | Railway (server) | Scaffolded, 9/9 tests passing. Not yet deployed. |
 
 ## Architecture: delegation, not inheritance
 
@@ -59,19 +92,15 @@ This repo is the **prototype object** — it defines shared behavior. Other proj
        └───────────────┘  └────────────────┘
 ```
 
-### Project layout on disk
+### Project layout
 
-Each repo is a peer under `~/Athenia/projects/`. No nesting.
+Four public repos. Each is self-contained.
 
 ```
-projects/
-├── track-workout-core/     ← this repo (prototype: spec only)
-├── track-workout-swift/    ← SwiftUI + Core Data (iOS, macOS)
-├── track-workout-expo/     ← Expo + React Native (iOS, Android)
-├── track-workout-api/      ← sync server (Express + Drizzle)
-├── body-metrics/           ← peer: FIT→CSV, HR integration hub
-├── ble/                    ← peer: Polar H10 BLE research
-└── track-workout/          ← archived legacy monorepo (reference only)
+track-workout-core/     ← this repo (spec only, no code)
+track-workout-swift/    ← SwiftUI + Core Data (iOS, macOS)
+track-workout-expo/     ← Expo + React Native (iOS, Android)
+track-workout-api/      ← sync server (Express + Drizzle + MySQL)
 ```
 
 ### How delegation works in practice
