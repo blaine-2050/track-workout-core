@@ -26,14 +26,70 @@ This repo holds **only prose specs**. No executable code. Every platform impleme
 | `blaine-2050/track-workout-api` | Express + Drizzle | Railway (server) | Scaffolded, 9/9 tests passing, not deployed |
 | — | Web (framework TBD) | Browser | Planned |
 
-## How platform repos use this repo
+## Architecture: delegation, not inheritance
 
-Platform repos don't vendor or submodule this repo. They reference it by URL:
+Inspired by [Self](https://en.wikipedia.org/wiki/Self_(programming_language)): every project is an **encapsulated peer object**. No hierarchy, no parent-child nesting. Each project has its own state, build, tests, and deploy. References to other projects are explicit URL-based **delegation slots** documented in each project's `CLAUDE.md`.
 
-- In their `CLAUDE.md`, a "source of truth" section points to files here.
-- When a change to a platform impacts the contract (data model, sync, workout scripts, computer-use protocol), update this repo first, then the platforms.
+This repo is the **prototype object** — it defines shared behavior. Other projects delegate TO it. It does not contain or own them.
 
-This is **delegation, not inheritance**. Platform repos can be cloned and worked on from anywhere without needing this repo checked out locally.
+```
+                    ┌──────────────────────────┐
+                    │    track-workout-core     │
+                    │   (spec: PRD, data model, │
+                    │    scripts, decisions)    │
+                    └─────────┬────────────────┘
+                              │
+               ┌──────────────┼──────────────┐
+               │  delegates   │  delegates   │  delegates
+               ▼              ▼              ▼
+       ┌──────────────┐ ┌───────────┐ ┌────────────┐
+       │    -swift     │ │   -expo   │ │    -api    │
+       │  SwiftUI      │ │ React    │ │  Express   │
+       │  Core Data    │ │ Native   │ │  Drizzle   │
+       │  iOS + macOS  │ │ iOS +   │ │  MySQL     │
+       │              │ │ Android  │ │  Railway   │
+       └──────────────┘ └───────────┘ └────────────┘
+               │              │              │
+               └──── sync ────┴──── sync ────┘
+                                │
+       ┌───────────────┐  ┌─────┴──────────┐
+       │      ble      │  │  body-metrics  │
+       │  Polar H10    │─▶│  FIT→CSV       │
+       │  R&D          │  │  HR viz hub    │
+       └───────────────┘  └────────────────┘
+```
+
+### Project layout on disk
+
+Each repo is a peer under `~/Athenia/projects/`. No nesting.
+
+```
+projects/
+├── track-workout-core/     ← this repo (prototype: spec only)
+├── track-workout-swift/    ← SwiftUI + Core Data (iOS, macOS)
+├── track-workout-expo/     ← Expo + React Native (iOS, Android)
+├── track-workout-api/      ← sync server (Express + Drizzle)
+├── body-metrics/           ← peer: FIT→CSV, HR integration hub
+├── ble/                    ← peer: Polar H10 BLE research
+└── track-workout/          ← archived legacy monorepo (reference only)
+```
+
+### How delegation works in practice
+
+Each project's `CLAUDE.md` has a **"Delegates to"** table listing what it references — analogous to inspecting an object's parent slots in a Self browser:
+
+```markdown
+## Delegates to
+| What            | Where              | How                     |
+|-----------------|--------------------|-------------------------|
+| Behavior spec   | track-workout-core | Fetch PRD.md, DATA_MODEL.md by URL |
+| Sync server     | track-workout-api  | POST /sync/events, opt-in          |
+| HR data (FIT)   | body-metrics       | fit_to_csv.py → CSV → file import  |
+```
+
+- **Spec wins.** If a platform's code disagrees with `track-workout-core`, the spec wins unless a decision is recorded in the platform's own `CLAUDE.md`.
+- **Update core first.** Contract changes (data model, sync, UX invariants) happen here before propagating to platforms.
+- **No vendoring.** Platform repos reference this repo by URL, never by submodule or copy.
 
 ## Conventions
 
