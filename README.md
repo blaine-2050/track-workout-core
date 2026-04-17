@@ -17,16 +17,14 @@ This repo holds **only prose specs**. No executable code. Every platform impleme
 | [`WORKOUT_SCRIPTS/`](WORKOUT_SCRIPTS/) | Plain-English acceptance scenarios each platform must satisfy |
 | [`DECISIONS.md`](DECISIONS.md) | Architectural decisions and their rationale |
 
-## Platform implementations
+## Implementations (by tool, not platform)
 
-| Platform | Repo | Status |
-|----------|------|--------|
-| iOS (Swift) | `blaine-2050/track-workout-ios-swift` | Active — primary development target |
-| Sync server | `blaine-2050/track-workout-api` | Initial scaffold; not yet deployed |
-| iOS Web | — | Planned |
-| Android (React Native) | — | Planned |
-| Android (other) | — | Planned |
-| macOS (Swift) | — | Planned |
+| Repo | Tool | Platforms | Status |
+|------|------|-----------|--------|
+| `blaine-2050/track-workout-swift` | SwiftUI + Core Data | iOS, macOS | Active — spec v2.1, 10 Maestro flows green |
+| `blaine-2050/track-workout-expo` | Expo + React Native | iOS, Android | Extracted — spec v1 parity, v2 gaps documented |
+| `blaine-2050/track-workout-api` | Express + Drizzle | Railway (server) | Scaffolded, 9/9 tests passing, not deployed |
+| — | Web (framework TBD) | Browser | Planned |
 
 ## How platform repos use this repo
 

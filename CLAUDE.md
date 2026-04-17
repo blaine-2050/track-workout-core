@@ -17,6 +17,6 @@ Authoritative cross-platform specification for Track Workout. **Prose only.** No
 - If a platform's behavior diverges from a spec here, the spec wins unless there's an explicit decision recorded in the platform's `CLAUDE.md`.
 
 ## Related repos
-- `blaine-2050/track-workout-ios-swift` — iOS Swift implementation (primary)
+- `blaine-2050/track-workout-swift` — iOS Swift implementation (primary)
 - Future: ios-web, android-react, android-other, macos-swift
 - Legacy reference (not consumed by platforms): `apps/macos-electron-legacy` inside the legacy `track-workout` monorepo
